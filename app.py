@@ -56,16 +56,8 @@ with tab_signup:
     suggestions = {
         "Apps": ["Cheese & Salami roll", "Cheese & Charcuterie Board", "Vegetable Tray", "Crab Dip or Buffalo Dip", "Caesar Salad", "Deviled Eggs", "Dinner Rolls and/or Biscuits"],
         "Main": ["Roast Turkey & gravy", "Baked Ham"],
-        "Side Dish": [
-            "Mashed Potatoes", "Traditional Bread Stuffing", "Green Beans", 
-            "Glazed Carrots or Roasted Vegetables", "Sauerkraut and Sausage", "Cranberry Sauce",
-            "Broccoli Salad", "Pasta Salad", "Coleslaw"
-        ],
-        "Dessert": [
-            "Lemon Meringue Pie", "Pumpkin Pie", "Apple Pie", 
-            "White Cake with Chocolate Icing", "Buns", "Cookies and/or Brownies",
-            "Lemon Bars", "Coconut Cake", "Carrot Cake", "Caramel Cake"
-        ],
+        "Side Dish": ["Mashed Potatoes", "Traditional Bread Stuffing", "Green Beans", "Glazed Carrots or Roasted Vegetables", "Sauerkraut and Sausage", "Cranberry Sauce", "Broccoli Salad", "Pasta Salad", "Coleslaw"],
+        "Dessert": ["Lemon Meringue Pie", "Pumpkin Pie", "Apple Pie", "White Cake with Chocolate Icing", "Buns", "Cookies and/or Brownies", "Lemon Bars", "Coconut Cake", "Carrot Cake", "Caramel Cake"],
         "Drinks": ["Apple Cider", "Beer - Natural Light", "Beer - Bottled (Stella/Blue Moon/Etc)", "Wine - Red", "Wine - Sparkling", "Wine - White", "Hard Seltzers", "Sodas"]
     }
     
@@ -176,13 +168,31 @@ with tab_attendance:
         st.write("### Full Attendee List")
         st.dataframe(attendance_df, use_container_width=True, hide_index=True)
 
-# ====================== POTLUCK FOOD TAB ======================
+# ====================== POTLUCK FOOD TAB (EACH FOOD ON SEPARATE LINE) ======================
 with tab_food:
     st.write("### 🍽️ Potluck Food")
-    food_df = df[df["Food Item"] != ""][["Name", "Food Item", "Category", "Notes"]].copy()
-    if len(food_df) == 0:
+    if len(df) == 0 or df["Food Item"].dropna().empty:
         st.info("No food signed up yet!")
     else:
+        food_list = []
+        for _, row in df.iterrows():
+            name = row["Name"]
+            food_str = row.get("Food Item", "")
+            category = row.get("Category", "")
+            notes = row.get("Notes", "")
+            
+            if pd.notna(food_str) and str(food_str).strip():
+                for item in str(food_str).strip().split(", "):
+                    item = item.strip()
+                    if item:
+                        food_list.append({
+                            "Person": name,
+                            "Food Item": item,
+                            "Category": category,
+                            "Notes": notes
+                        })
+        
+        food_df = pd.DataFrame(food_list)
         st.dataframe(food_df, use_container_width=True, hide_index=True)
 
 # ====================== MANAGE TAB ======================
