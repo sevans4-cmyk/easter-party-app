@@ -5,7 +5,7 @@ import random
 import string
 import os
 
-# Responsive tabs (big on laptop, normal on phone)
+# Responsive tabs
 st.markdown("""
 <style>
     .stTabs [data-baseweb="tab-list"] { gap: 12px; }
@@ -39,13 +39,6 @@ def load_data():
 
 df = load_data()
 
-# Get all already-claimed foods (split by comma)
-claimed_foods = set()
-for food_str in df["Food Item"].dropna():
-    for item in str(food_str).split(", "):
-        if item.strip():
-            claimed_foods.add(item.strip())
-
 tab_signup, tab_attendance, tab_food, tab_manage = st.tabs([
     "📝 Sign Up", 
     "👥 Who's Coming", 
@@ -70,6 +63,15 @@ with tab_signup:
     
     if "selected_foods" not in st.session_state:
         st.session_state.selected_foods = []
+    if "selected_category" not in st.session_state:
+        st.session_state.selected_category = "Apps"
+    
+    # Track claimed foods
+    claimed_foods = set()
+    for food_str in df["Food Item"].dropna():
+        for item in str(food_str).split(", "):
+            if item.strip():
+                claimed_foods.add(item.strip())
     
     for category, items in suggestions.items():
         st.write(f"**{category}**")
@@ -86,8 +88,10 @@ with tab_signup:
                     key=f"cb_{category}_{i}"
                 )
                 
-                if checked and item not in st.session_state.selected_foods:
-                    st.session_state.selected_foods.append(item)
+                if checked:
+                    if item not in st.session_state.selected_foods:
+                        st.session_state.selected_foods.append(item)
+                    st.session_state.selected_category = category   # ← AUTO-SELECT CATEGORY
                 elif not checked and item in st.session_state.selected_foods:
                     st.session_state.selected_foods.remove(item)
     
@@ -101,7 +105,10 @@ with tab_signup:
         attending = st.selectbox("Are you coming?", ["Yes", "Maybe", "No"])
         attendees = st.text_area("Who is attending? (one name per line)", placeholder="Sarah Evans\nJohn Evans\nEmma Evans", height=100)
         
-        category = st.selectbox("Category", ["Apps", "Side Dish", "Main", "Dessert", "Drinks"])
+        # Category is now auto-filled from the checklist
+        category = st.selectbox("Category", ["Apps", "Side Dish", "Main", "Dessert", "Drinks"], 
+                               index=["Apps", "Side Dish", "Main", "Dessert", "Drinks"].index(st.session_state.selected_category))
+        
         food_item_default = ", ".join(st.session_state.selected_foods) if st.session_state.selected_foods else ""
         food_item = st.text_input("What are you bringing? (leave blank if nothing)", value=food_item_default, placeholder="Deviled eggs, Mashed Potatoes")
         
@@ -129,6 +136,7 @@ with tab_signup:
             Save this code — you’ll need it to edit or delete later!
             """)
             st.session_state.selected_foods = []
+            st.session_state.selected_category = "Apps"
             st.rerun()
 
 # ====================== OTHER TABS ======================
@@ -137,7 +145,21 @@ with tab_attendance:
     if len(df) == 0:
         st.info("No signups yet — be the first!")
     else:
-        st.dataframe(df[["Name", "Attending", "Attendees", "Notes"]], use_container_width=True, hide_index=True)
+        attendance_list = []
+        for _, row in df.iterrows():
+            family = row["Name"]
+            status = row["Attending"]
+            notes = row.get("Notes", "")
+            attendees_str = row.get("Attendees", "")
+            if pd.isna(attendees_str) or str(attendees_str).strip() == "":
+                attendance_list.append({"Family": family, "Person": family, "Attending": status, "Notes": notes})
+            else:
+                for person in str(attendees_str).strip().split("\n"):
+                    person = person.strip()
+                    if person:
+                        attendance_list.append({"Family": family, "Person": person, "Attending": status, "Notes": notes})
+        attendance_df = pd.DataFrame(attendance_list)
+        st.dataframe(attendance_df, use_container_width=True, hide_index=True)
 
 with tab_food:
     st.write("### 🍽️ Potluck Food")
@@ -149,7 +171,6 @@ with tab_food:
 
 with tab_manage:
     st.write("### 🔧 Manage My Signup")
-    
     with st.expander("❓ Forgot your Edit Code?"):
         st.write("Enter your name below to retrieve it:")
         forgot_name = st.text_input("Your name", placeholder="Sarah Evans", key="forgot_name")
@@ -162,7 +183,6 @@ with tab_manage:
                 st.error("No signup found with that name.")
     
     edit_code_input = st.text_input("Enter your Edit Code", placeholder="A1B2C3")
-    
     if st.button("🔍 Load My Signup"):
         matches = df[df["Edit Code"] == edit_code_input.upper().strip()]
         if not matches.empty:
