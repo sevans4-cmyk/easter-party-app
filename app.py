@@ -5,20 +5,15 @@ import random
 import string
 import os
 
-# Make tabs bigger and clearer
+# Bigger, clearer tabs
 st.markdown("""
 <style>
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 30px;
-    }
+    .stTabs [data-baseweb="tab-list"] { gap: 30px; }
     .stTabs [data-baseweb="tab"] {
         font-size: 20px !important;
         font-weight: 700 !important;
         padding: 16px 32px !important;
         border-radius: 8px;
-    }
-    .stTabs [data-baseweb="tab"]:hover {
-        background-color: #f0f2f6;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -40,7 +35,6 @@ def load_data():
 
 df = load_data()
 
-# Bigger tab labels
 tab_signup, tab_attendance, tab_food, tab_manage = st.tabs([
     "📝 Sign Up", 
     "👥 Who's Coming", 
@@ -109,7 +103,11 @@ with tab_signup:
             }])
             df = pd.concat([df, new_row], ignore_index=True)
             df.to_csv(CSV_FILE, index=False)
-            st.success(f"🎉 Signup added! **Your Edit Code: {edit_code}**  \nSave this code to edit or delete later!")
+            st.success(f"""
+            🎉 **Signup added successfully!**  
+            **Your Edit Code: `{edit_code}`**  
+            Save this code — you’ll need it to edit or delete later!
+            """)
             st.session_state.selected_foods = []
             st.rerun()
 
@@ -131,6 +129,20 @@ with tab_food:
 
 with tab_manage:
     st.write("### 🔧 Manage My Signup")
+    
+    # New "Forgot Edit Code?" section
+    with st.expander("❓ Forgot your Edit Code?"):
+        st.write("Enter your name below to retrieve it:")
+        forgot_name = st.text_input("Your name", placeholder="Sarah Evans", key="forgot_name")
+        if st.button("🔍 Find My Edit Code"):
+            matches = df[df["Name"].str.contains(forgot_name, case=False, na=False)]
+            if not matches.empty:
+                for _, row in matches.iterrows():
+                    st.success(f"**{row['Name']}** → Edit Code: `{row['Edit Code']}`")
+            else:
+                st.error("No signup found with that name.")
+    
+    # Normal edit flow
     edit_code_input = st.text_input("Enter your Edit Code", placeholder="A1B2C3")
     
     if st.button("🔍 Load My Signup"):
@@ -139,7 +151,7 @@ with tab_manage:
             row = matches.iloc[0]
             st.session_state.edit_row = row.to_dict()
             st.session_state.edit_index = matches.index[0]
-            st.success("✅ Signup loaded! Scroll down to edit or delete.")
+            st.success("✅ Signup loaded!")
         else:
             st.error("❌ No signup found with that code.")
 
