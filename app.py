@@ -62,9 +62,7 @@ with tab_signup:
     }
     
     if "selected_foods" not in st.session_state:
-        st.session_state.selected_foods = []
-    if "selected_category" not in st.session_state:
-        st.session_state.selected_category = "Apps"
+        st.session_state.selected_foods = []   # list of food items
     
     claimed_foods = set()
     for food_str in df["Food Item"].dropna():
@@ -80,10 +78,8 @@ with tab_signup:
                 is_claimed = item in claimed_foods
                 label = f"{item} (already claimed)" if is_claimed else item
                 checked = st.checkbox(label, value=item in st.session_state.selected_foods, disabled=is_claimed, key=f"cb_{category}_{i}")
-                if checked:
-                    if item not in st.session_state.selected_foods:
-                        st.session_state.selected_foods.append(item)
-                    st.session_state.selected_category = category
+                if checked and item not in st.session_state.selected_foods:
+                    st.session_state.selected_foods.append(item)
                 elif not checked and item in st.session_state.selected_foods:
                     st.session_state.selected_foods.remove(item)
     
@@ -97,11 +93,11 @@ with tab_signup:
         attending = st.selectbox("Are you coming?", ["Yes", "Maybe", "No"])
         attendees = st.text_area("Who is attending? (one name per line)", placeholder="Sarah Evans\nJohn Evans\nEmma Evans", height=100)
         
-        category = st.selectbox("Category", ["Apps", "Side Dish", "Main", "Dessert", "Drinks"], 
-                               index=["Apps", "Side Dish", "Main", "Dessert", "Drinks"].index(st.session_state.selected_category))
-        
         food_item_default = ", ".join(st.session_state.selected_foods) if st.session_state.selected_foods else ""
         food_item = st.text_input("What are you bringing? (leave blank if nothing)", value=food_item_default, placeholder="Deviled eggs, Mashed Potatoes")
+        
+        # Category dropdown stays for custom items
+        category = st.selectbox("Category", ["Apps", "Side Dish", "Main", "Dessert", "Drinks"])
         
         notes = st.text_area("Notes or allergies?", placeholder="Any vegetarian options?")
         
@@ -127,13 +123,11 @@ with tab_signup:
             Save this code — you’ll need it to edit or delete later!
             """)
             st.session_state.selected_foods = []
-            st.session_state.selected_category = "Apps"
             st.rerun()
 
 # ====================== WHO'S COMING TAB WITH TALLY ======================
 with tab_attendance:
     st.write("### 👥 Who's Coming")
-    
     if len(df) == 0:
         st.info("No signups yet — be the first!")
     else:
@@ -143,7 +137,6 @@ with tab_attendance:
             status = row["Attending"]
             notes = row.get("Notes", "")
             attendees_str = row.get("Attendees", "")
-            
             if pd.isna(attendees_str) or str(attendees_str).strip() == "":
                 attendance_list.append({"Family": family, "Person": family, "Attending": status, "Notes": notes})
             else:
@@ -151,7 +144,6 @@ with tab_attendance:
                     person = person.strip()
                     if person:
                         attendance_list.append({"Family": family, "Person": person, "Attending": status, "Notes": notes})
-        
         attendance_df = pd.DataFrame(attendance_list)
         
         total_attending = len(attendance_df[attendance_df["Attending"] == "Yes"])
@@ -168,7 +160,7 @@ with tab_attendance:
         st.write("### Full Attendee List")
         st.dataframe(attendance_df, use_container_width=True, hide_index=True)
 
-# ====================== POTLUCK FOOD TAB ======================
+# ====================== POTLUCK FOOD TAB (EACH FOOD ON SEPARATE LINE + CORRECT CATEGORY) ======================
 with tab_food:
     st.write("### 🍽️ Potluck Food")
     if len(df) == 0 or df["Food Item"].dropna().empty:
@@ -178,17 +170,22 @@ with tab_food:
         for _, row in df.iterrows():
             name = row["Name"]
             food_str = row.get("Food Item", "")
-            category = row.get("Category", "")
             notes = row.get("Notes", "")
             
             if pd.notna(food_str) and str(food_str).strip():
                 for item in str(food_str).strip().split(", "):
                     item = item.strip()
                     if item:
+                        # Look up the correct category for this specific item
+                        found_cat = "Other"
+                        for cat, items in suggestions.items():
+                            if item in items:
+                                found_cat = cat
+                                break
                         food_list.append({
                             "Person": name,
                             "Food Item": item,
-                            "Category": category,
+                            "Category": found_cat,
                             "Notes": notes
                         })
         
