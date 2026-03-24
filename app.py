@@ -51,7 +51,7 @@ with tab_signup:
     st.write("### Add your RSVP + food")
     
     st.write("**Select the foods you are bringing (multiple OK)**")
-    st.caption("Checked boxes turn green • Grayed-out items are already claimed")
+    st.caption("Choose from the options below, or enter your own in the box provided.")
     
     suggestions = {
         "Apps": ["Cheese & Salami roll", "Cheese & Charcuterie Board", "Vegetable Tray", "Crab Dip or Buffalo Dip", "Caesar Salad", "Deviled Eggs", "Dinner Rolls and/or Biscuits"],
@@ -168,7 +168,7 @@ with tab_attendance:
         st.write("### Full Attendee List")
         st.dataframe(attendance_df, use_container_width=True, hide_index=True)
 
-# ====================== POTLUCK FOOD TAB (EACH FOOD ON SEPARATE LINE) ======================
+# ====================== POTLUCK FOOD TAB ======================
 with tab_food:
     st.write("### 🍽️ Potluck Food")
     if len(df) == 0 or df["Food Item"].dropna().empty:
