@@ -56,8 +56,16 @@ with tab_signup:
     suggestions = {
         "Apps": ["Cheese & Salami roll", "Cheese & Charcuterie Board", "Vegetable Tray", "Crab Dip or Buffalo Dip", "Caesar Salad", "Deviled Eggs", "Dinner Rolls and/or Biscuits"],
         "Main": ["Roast Turkey & gravy", "Baked Ham"],
-        "Side Dish": ["Mashed Potatoes", "Traditional Bread Stuffing", "Green Beans", "Glazed Carrots or Roasted Vegetables", "Sauerkraut and Sausage", "Cranberry Sauce"],
-        "Dessert": ["Lemon Meringue Pie", "Pumpkin Pie", "Apple Pie", "White Cake with Chocolate Icing", "Buns", "Cookies and/or Brownies"],
+        "Side Dish": [
+            "Mashed Potatoes", "Traditional Bread Stuffing", "Green Beans", 
+            "Glazed Carrots or Roasted Vegetables", "Sauerkraut and Sausage", "Cranberry Sauce",
+            "Broccoli Salad", "Pasta Salad", "Coleslaw"
+        ],
+        "Dessert": [
+            "Lemon Meringue Pie", "Pumpkin Pie", "Apple Pie", 
+            "White Cake with Chocolate Icing", "Buns", "Cookies and/or Brownies",
+            "Lemon Bars", "Coconut Cake", "Carrot Cake", "Caramel Cake"
+        ],
         "Drinks": ["Apple Cider", "Beer - Natural Light", "Beer - Bottled (Stella/Blue Moon/Etc)", "Wine - Red", "Wine - Sparkling", "Wine - White", "Hard Seltzers", "Sodas"]
     }
     
@@ -137,7 +145,6 @@ with tab_attendance:
     if len(df) == 0:
         st.info("No signups yet — be the first!")
     else:
-        # Build expanded attendee list
         attendance_list = []
         for _, row in df.iterrows():
             family = row["Name"]
@@ -155,7 +162,6 @@ with tab_attendance:
         
         attendance_df = pd.DataFrame(attendance_list)
         
-        # === NEW TALLY ===
         total_attending = len(attendance_df[attendance_df["Attending"] == "Yes"])
         total_maybe = len(attendance_df[attendance_df["Attending"] == "Maybe"])
         total_not = len(attendance_df[attendance_df["Attending"] == "No"])
