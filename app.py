@@ -5,27 +5,19 @@ import random
 import string
 import os
 
-# Responsive tabs - bigger on laptop, smaller on phone
+# Responsive tabs (big on laptop, normal on phone)
 st.markdown("""
 <style>
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 12px;
-    }
+    .stTabs [data-baseweb="tab-list"] { gap: 12px; }
     .stTabs [data-baseweb="tab"] {
         font-size: 17px !important;
         font-weight: 700 !important;
         padding: 12px 20px !important;
         border-radius: 8px;
     }
-    /* Bigger on laptop/desktop */
     @media (min-width: 768px) {
-        .stTabs [data-baseweb="tab"] {
-            font-size: 20px !important;
-            padding: 16px 32px !important;
-        }
-        .stTabs [data-baseweb="tab-list"] {
-            gap: 30px;
-        }
+        .stTabs [data-baseweb="tab"] { font-size: 20px !important; padding: 16px 32px !important; }
+        .stTabs [data-baseweb="tab-list"] { gap: 30px; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -47,6 +39,13 @@ def load_data():
 
 df = load_data()
 
+# Get all already-claimed foods (split by comma)
+claimed_foods = set()
+for food_str in df["Food Item"].dropna():
+    for item in str(food_str).split(", "):
+        if item.strip():
+            claimed_foods.add(item.strip())
+
 tab_signup, tab_attendance, tab_food, tab_manage = st.tabs([
     "📝 Sign Up", 
     "👥 Who's Coming", 
@@ -59,7 +58,7 @@ with tab_signup:
     st.write("### Add your RSVP + food")
     
     st.write("**Select the foods you are bringing (multiple OK)**")
-    st.caption("Checked boxes turn green")
+    st.caption("Checked boxes turn green • Grayed-out items are already claimed")
     
     suggestions = {
         "Apps": ["Cheese & Salami roll", "Cheese & Charcuterie Board", "Vegetable Tray", "Crab Dip or Buffalo Dip", "Caesar Salad", "Deviled Eggs", "Dinner Rolls and/or Biscuits"],
@@ -77,7 +76,16 @@ with tab_signup:
         cols = st.columns(3)
         for i, item in enumerate(items):
             with cols[i % 3]:
-                checked = st.checkbox(item, value=item in st.session_state.selected_foods, key=f"cb_{category}_{i}")
+                is_claimed = item in claimed_foods
+                label = f"{item} (already claimed)" if is_claimed else item
+                
+                checked = st.checkbox(
+                    label,
+                    value=item in st.session_state.selected_foods,
+                    disabled=is_claimed,
+                    key=f"cb_{category}_{i}"
+                )
+                
                 if checked and item not in st.session_state.selected_foods:
                     st.session_state.selected_foods.append(item)
                 elif not checked and item in st.session_state.selected_foods:
@@ -180,4 +188,15 @@ with tab_manage:
                 if st.form_submit_button("💾 Update Signup"):
                     df.loc[st.session_state.edit_index, ["Name", "Attending", "Attendees", "Food Item", "Category", "Notes"]] = [name, attending, attendees, food_item, category, notes]
                     df.to_csv(CSV_FILE, index=False)
-                    st.success
+                    st.success("✅ Updated!")
+                    del st.session_state.edit_row
+                    del st.session_state.edit_index
+                    st.rerun()
+            with col2:
+                if st.form_submit_button("🗑️ Delete Signup", type="primary"):
+                    df = df.drop(st.session_state.edit_index)
+                    df.to_csv(CSV_FILE, index=False)
+                    st.success("🗑️ Deleted!")
+                    del st.session_state.edit_row
+                    del st.session_state.edit_index
+                    st.rerun()
