@@ -5,15 +5,27 @@ import random
 import string
 import os
 
-# Bigger, clearer tabs
+# Responsive tabs - bigger on laptop, smaller on phone
 st.markdown("""
 <style>
-    .stTabs [data-baseweb="tab-list"] { gap: 30px; }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px;
+    }
     .stTabs [data-baseweb="tab"] {
-        font-size: 20px !important;
+        font-size: 17px !important;
         font-weight: 700 !important;
-        padding: 16px 32px !important;
+        padding: 12px 20px !important;
         border-radius: 8px;
+    }
+    /* Bigger on laptop/desktop */
+    @media (min-width: 768px) {
+        .stTabs [data-baseweb="tab"] {
+            font-size: 20px !important;
+            padding: 16px 32px !important;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 30px;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -130,7 +142,6 @@ with tab_food:
 with tab_manage:
     st.write("### 🔧 Manage My Signup")
     
-    # New "Forgot Edit Code?" section
     with st.expander("❓ Forgot your Edit Code?"):
         st.write("Enter your name below to retrieve it:")
         forgot_name = st.text_input("Your name", placeholder="Sarah Evans", key="forgot_name")
@@ -142,7 +153,6 @@ with tab_manage:
             else:
                 st.error("No signup found with that name.")
     
-    # Normal edit flow
     edit_code_input = st.text_input("Enter your Edit Code", placeholder="A1B2C3")
     
     if st.button("🔍 Load My Signup"):
@@ -170,15 +180,4 @@ with tab_manage:
                 if st.form_submit_button("💾 Update Signup"):
                     df.loc[st.session_state.edit_index, ["Name", "Attending", "Attendees", "Food Item", "Category", "Notes"]] = [name, attending, attendees, food_item, category, notes]
                     df.to_csv(CSV_FILE, index=False)
-                    st.success("✅ Updated!")
-                    del st.session_state.edit_row
-                    del st.session_state.edit_index
-                    st.rerun()
-            with col2:
-                if st.form_submit_button("🗑️ Delete Signup", type="primary"):
-                    df = df.drop(st.session_state.edit_index)
-                    df.to_csv(CSV_FILE, index=False)
-                    st.success("🗑️ Deleted!")
-                    del st.session_state.edit_row
-                    del st.session_state.edit_index
-                    st.rerun()
+                    st.success
