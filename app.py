@@ -28,65 +28,63 @@ tab_signup, tab_attendance, tab_food, tab_manage = st.tabs(["📝 Sign Up", "�
 with tab_signup:
     st.write("### Add your RSVP + food")
     
-    # === GREEN CHECKBOX FOOD SUGGESTIONS ===
-    with st.expander("🥕 Check the items you want to bring (multiple OK)"):
-        st.caption("Checked boxes turn green")
-        
-        suggestions = {
-            "Apps": [
-                "Cheese & Salami roll", "Cheese & Charcuterie Board", "Vegetable Tray",
-                "Crab Dip or Buffalo Dip", "Caesar Salad", "Deviled Eggs", "Dinner Rolls and/or Biscuits"
-            ],
-            "Main": ["Roast Turkey & gravy", "Baked Ham"],
-            "Side Dish": [
-                "Mashed Potatoes", "Traditional Bread Stuffing", "Green Beans",
-                "Glazed Carrots or Roasted Vegetables", "Sauerkraut and Sausage", "Cranberry Sauce"
-            ],
-            "Dessert": [
-                "Lemon Meringue Pie", "Pumpkin Pie", "Apple Pie",
-                "White Cake with Chocolate Icing", "Buns", "Cookies and/or Brownies"
-            ],
-            "Drinks": [
-                "Apple Cider", "Beer - Natural Light", "Beer - Bottled (Stella/Blue Moon/Etc)",
-                "Wine - Red", "Wine - Sparkling", "Wine - White", "Hard Seltzers", "Sodas"
-            ]
-        }
-        
-        # Store selections in session state
-        if "selected_foods" not in st.session_state:
-            st.session_state.selected_foods = []
-        
-        for category, items in suggestions.items():
-            st.write(f"**{category}**")
-            cols = st.columns(3)
-            for i, item in enumerate(items):
-                with cols[i % 3]:
-                    checked = st.checkbox(item, value=item in st.session_state.selected_foods, key=f"cb_{category}_{i}")
-                    if checked and item not in st.session_state.selected_foods:
-                        st.session_state.selected_foods.append(item)
-                    elif not checked and item in st.session_state.selected_foods:
-                        st.session_state.selected_foods.remove(item)
-        
-        # Show what’s currently selected
-        if st.session_state.selected_foods:
-            st.success("**Your selections:** " + ", ".join(st.session_state.selected_foods))
-        else:
-            st.write("*(Nothing selected yet)*")
+    # === ALWAYS VISIBLE GREEN CHECKBOXES ===
+    st.write("**Select the foods you are bringing (multiple OK)**")
+    st.caption("Checked boxes turn green")
+    
+    suggestions = {
+        "Apps": [
+            "Cheese & Salami roll", "Cheese & Charcuterie Board", "Vegetable Tray",
+            "Crab Dip or Buffalo Dip", "Caesar Salad", "Deviled Eggs", "Dinner Rolls and/or Biscuits"
+        ],
+        "Main": ["Roast Turkey & gravy", "Baked Ham"],
+        "Side Dish": [
+            "Mashed Potatoes", "Traditional Bread Stuffing", "Green Beans",
+            "Glazed Carrots or Roasted Vegetables", "Sauerkraut and Sausage", "Cranberry Sauce"
+        ],
+        "Dessert": [
+            "Lemon Meringue Pie", "Pumpkin Pie", "Apple Pie",
+            "White Cake with Chocolate Icing", "Buns", "Cookies and/or Brownies"
+        ],
+        "Drinks": [
+            "Apple Cider", "Beer - Natural Light", "Beer - Bottled (Stella/Blue Moon/Etc)",
+            "Wine - Red", "Wine - Sparkling", "Wine - White", "Hard Seltzers", "Sodas"
+        ]
+    }
+    
+    if "selected_foods" not in st.session_state:
+        st.session_state.selected_foods = []
+    
+    for category, items in suggestions.items():
+        st.write(f"**{category}**")
+        cols = st.columns(3)
+        for i, item in enumerate(items):
+            with cols[i % 3]:
+                checked = st.checkbox(item, value=item in st.session_state.selected_foods, key=f"cb_{category}_{i}")
+                if checked and item not in st.session_state.selected_foods:
+                    st.session_state.selected_foods.append(item)
+                elif not checked and item in st.session_state.selected_foods:
+                    st.session_state.selected_foods.remove(item)
+    
+    if st.session_state.selected_foods:
+        st.success("**Your selections:** " + ", ".join(st.session_state.selected_foods))
+    else:
+        st.write("*(Nothing selected yet)*")
 
-    # The signup form
+    # The signup form (Category now above food item)
     with st.form("signup_form", clear_on_submit=True):
         name = st.text_input("Your family name *", placeholder="Sarah Evans")
         attending = st.selectbox("Are you coming?", ["Yes", "Maybe", "No"])
         attendees = st.text_area("Who is attending? (one name per line)", 
                                 placeholder="Sarah Evans\nJohn Evans\nEmma Evans", height=100)
         
-        # Auto-fill food item with checked selections
+        # Category now appears BEFORE "What are you bringing?"
+        category = st.selectbox("Category", ["Apps", "Side Dish", "Main", "Dessert", "Drinks"])
+        
         food_item_default = ", ".join(st.session_state.selected_foods) if st.session_state.selected_foods else ""
         food_item = st.text_input("What are you bringing? (leave blank if nothing)", 
                                  value=food_item_default, 
                                  placeholder="Deviled eggs, Mashed Potatoes")
-        
-        category = st.selectbox("Category", ["Apps", "Side Dish", "Main", "Dessert", "Drinks"])
         
         notes = st.text_area("Notes or allergies?", placeholder="Any vegetarian options?")
         
@@ -108,11 +106,10 @@ with tab_signup:
             df.to_csv(CSV_FILE, index=False)
             st.success(f"🎉 Signup added! **Your Edit Code: {edit_code}**  \nSave this code to edit or delete later!")
             
-            # Clear selections after submit
             st.session_state.selected_foods = []
             st.rerun()
 
-# ====================== REST OF THE APP (unchanged) ======================
+# ====================== REST OF THE APP ======================
 with tab_attendance:
     st.write("### 👥 Who's Coming")
     if len(df) == 0:
