@@ -66,7 +66,6 @@ with tab_signup:
     if "selected_category" not in st.session_state:
         st.session_state.selected_category = "Apps"
     
-    # Track claimed foods
     claimed_foods = set()
     for food_str in df["Food Item"].dropna():
         for item in str(food_str).split(", "):
@@ -80,18 +79,11 @@ with tab_signup:
             with cols[i % 3]:
                 is_claimed = item in claimed_foods
                 label = f"{item} (already claimed)" if is_claimed else item
-                
-                checked = st.checkbox(
-                    label,
-                    value=item in st.session_state.selected_foods,
-                    disabled=is_claimed,
-                    key=f"cb_{category}_{i}"
-                )
-                
+                checked = st.checkbox(label, value=item in st.session_state.selected_foods, disabled=is_claimed, key=f"cb_{category}_{i}")
                 if checked:
                     if item not in st.session_state.selected_foods:
                         st.session_state.selected_foods.append(item)
-                    st.session_state.selected_category = category   # ← AUTO-SELECT CATEGORY
+                    st.session_state.selected_category = category
                 elif not checked and item in st.session_state.selected_foods:
                     st.session_state.selected_foods.remove(item)
     
@@ -105,7 +97,6 @@ with tab_signup:
         attending = st.selectbox("Are you coming?", ["Yes", "Maybe", "No"])
         attendees = st.text_area("Who is attending? (one name per line)", placeholder="Sarah Evans\nJohn Evans\nEmma Evans", height=100)
         
-        # Category is now auto-filled from the checklist
         category = st.selectbox("Category", ["Apps", "Side Dish", "Main", "Dessert", "Drinks"], 
                                index=["Apps", "Side Dish", "Main", "Dessert", "Drinks"].index(st.session_state.selected_category))
         
@@ -139,18 +130,21 @@ with tab_signup:
             st.session_state.selected_category = "Apps"
             st.rerun()
 
-# ====================== OTHER TABS ======================
+# ====================== WHO'S COMING TAB WITH TALLY ======================
 with tab_attendance:
     st.write("### 👥 Who's Coming")
+    
     if len(df) == 0:
         st.info("No signups yet — be the first!")
     else:
+        # Build expanded attendee list
         attendance_list = []
         for _, row in df.iterrows():
             family = row["Name"]
             status = row["Attending"]
             notes = row.get("Notes", "")
             attendees_str = row.get("Attendees", "")
+            
             if pd.isna(attendees_str) or str(attendees_str).strip() == "":
                 attendance_list.append({"Family": family, "Person": family, "Attending": status, "Notes": notes})
             else:
@@ -158,9 +152,25 @@ with tab_attendance:
                     person = person.strip()
                     if person:
                         attendance_list.append({"Family": family, "Person": person, "Attending": status, "Notes": notes})
+        
         attendance_df = pd.DataFrame(attendance_list)
+        
+        # === NEW TALLY ===
+        total_attending = len(attendance_df[attendance_df["Attending"] == "Yes"])
+        total_maybe = len(attendance_df[attendance_df["Attending"] == "Maybe"])
+        total_not = len(attendance_df[attendance_df["Attending"] == "No"])
+        total_people = len(attendance_df)
+        
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("✅ Attending", total_attending)
+        col2.metric("❔ Maybe", total_maybe)
+        col3.metric("❌ Not Attending", total_not)
+        col4.metric("👥 Total People", total_people)
+        
+        st.write("### Full Attendee List")
         st.dataframe(attendance_df, use_container_width=True, hide_index=True)
 
+# ====================== POTLUCK FOOD TAB ======================
 with tab_food:
     st.write("### 🍽️ Potluck Food")
     food_df = df[df["Food Item"] != ""][["Name", "Food Item", "Category", "Notes"]].copy()
@@ -169,6 +179,7 @@ with tab_food:
     else:
         st.dataframe(food_df, use_container_width=True, hide_index=True)
 
+# ====================== MANAGE TAB ======================
 with tab_manage:
     st.write("### 🔧 Manage My Signup")
     with st.expander("❓ Forgot your Edit Code?"):
