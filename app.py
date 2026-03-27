@@ -3,7 +3,8 @@ import pandas as pd
 from datetime import datetime
 import random
 import string
-import os
+import gspread
+from google.oauth2 import service_account
 
 # Responsive tabs
 st.markdown("""
@@ -27,15 +28,22 @@ st.set_page_config(page_title="🐰 Evans Family Easter Party", page_icon="🐰"
 st.title("🐰 Evans Family Easter Party")
 st.subheader("April 5, 2026 • Sign up for attendance + potluck!")
 
-CSV_FILE = "signups.csv"
+# Connect to Google Sheets
+@st.cache_resource
+def get_connection():
+    credentials = service_account.Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    )
+    return gspread.authorize(credentials)
+
+gc = get_connection()
+sh = gc.open("Evans Family Easter Party Signups")
+worksheet = sh.worksheet("Signups")
 
 def load_data():
-    if os.path.exists(CSV_FILE):
-        return pd.read_csv(CSV_FILE)
-    else:
-        df = pd.DataFrame(columns=["Timestamp", "Name", "Attending", "Attendees", "Food Item", "Category", "Notes", "Edit Code"])
-        df.to_csv(CSV_FILE, index=False)
-        return df
+    data = worksheet.get_all_records()
+    return pd.DataFrame(data)
 
 df = load_data()
 
@@ -62,7 +70,7 @@ with tab_signup:
     }
     
     if "selected_foods" not in st.session_state:
-        st.session_state.selected_foods = []   # list of food items
+        st.session_state.selected_foods = []
     
     claimed_foods = set()
     for food_str in df["Food Item"].dropna():
@@ -96,7 +104,6 @@ with tab_signup:
         food_item_default = ", ".join(st.session_state.selected_foods) if st.session_state.selected_foods else ""
         food_item = st.text_input("What are you bringing? (leave blank if nothing)", value=food_item_default, placeholder="Deviled eggs, Mashed Potatoes")
         
-        # Category dropdown stays for custom items
         category = st.selectbox("Category", ["Apps", "Side Dish", "Main", "Dessert", "Drinks"])
         
         notes = st.text_area("Notes or allergies?", placeholder="Any vegetarian options?")
@@ -105,18 +112,17 @@ with tab_signup:
         
         if submitted and name:
             edit_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-            new_row = pd.DataFrame([{
-                "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "Name": name,
-                "Attending": attending,
-                "Attendees": attendees,
-                "Food Item": food_item,
-                "Category": category,
-                "Notes": notes,
-                "Edit Code": edit_code
-            }])
-            df = pd.concat([df, new_row], ignore_index=True)
-            df.to_csv(CSV_FILE, index=False)
+            new_row = [
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                name,
+                attending,
+                attendees,
+                food_item,
+                category,
+                notes,
+                edit_code
+            ]
+            worksheet.append_row(new_row)
             st.success(f"""
             🎉 **Signup added successfully!**  
             **Your Edit Code: `{edit_code}`**  
@@ -144,6 +150,7 @@ with tab_attendance:
                     person = person.strip()
                     if person:
                         attendance_list.append({"Family": family, "Person": person, "Attending": status, "Notes": notes})
+        
         attendance_df = pd.DataFrame(attendance_list)
         
         total_attending = len(attendance_df[attendance_df["Attending"] == "Yes"])
@@ -160,7 +167,7 @@ with tab_attendance:
         st.write("### Full Attendee List")
         st.dataframe(attendance_df, use_container_width=True, hide_index=True)
 
-# ====================== POTLUCK FOOD TAB (EACH FOOD ON SEPARATE LINE + CORRECT CATEGORY) ======================
+# ====================== POTLUCK FOOD TAB ======================
 with tab_food:
     st.write("### 🍽️ Potluck Food")
     if len(df) == 0 or df["Food Item"].dropna().empty:
@@ -170,25 +177,18 @@ with tab_food:
         for _, row in df.iterrows():
             name = row["Name"]
             food_str = row.get("Food Item", "")
+            category = row.get("Category", "")
             notes = row.get("Notes", "")
-            
             if pd.notna(food_str) and str(food_str).strip():
                 for item in str(food_str).strip().split(", "):
                     item = item.strip()
                     if item:
-                        # Look up the correct category for this specific item
-                        found_cat = "Other"
-                        for cat, items in suggestions.items():
-                            if item in items:
-                                found_cat = cat
-                                break
                         food_list.append({
                             "Person": name,
                             "Food Item": item,
-                            "Category": found_cat,
+                            "Category": category,
                             "Notes": notes
                         })
-        
         food_df = pd.DataFrame(food_list)
         st.dataframe(food_df, use_container_width=True, hide_index=True)
 
@@ -212,7 +212,7 @@ with tab_manage:
         if not matches.empty:
             row = matches.iloc[0]
             st.session_state.edit_row = row.to_dict()
-            st.session_state.edit_index = matches.index[0]
+            st.session_state.edit_index = matches.index[0] + 2   # Google row number
             st.success("✅ Signup loaded!")
         else:
             st.error("❌ No signup found with that code.")
@@ -230,16 +230,15 @@ with tab_manage:
             col1, col2 = st.columns(2)
             with col1:
                 if st.form_submit_button("💾 Update Signup"):
-                    df.loc[st.session_state.edit_index, ["Name", "Attending", "Attendees", "Food Item", "Category", "Notes"]] = [name, attending, attendees, food_item, category, notes]
-                    df.to_csv(CSV_FILE, index=False)
+                    worksheet.update(f"B{st.session_state.edit_index}:H{st.session_state.edit_index}", 
+                                   [[name, attending, attendees, food_item, category, notes, st.session_state.edit_row["Edit Code"]]])
                     st.success("✅ Updated!")
                     del st.session_state.edit_row
                     del st.session_state.edit_index
                     st.rerun()
             with col2:
                 if st.form_submit_button("🗑️ Delete Signup", type="primary"):
-                    df = df.drop(st.session_state.edit_index)
-                    df.to_csv(CSV_FILE, index=False)
+                    worksheet.delete_rows(st.session_state.edit_index)
                     st.success("🗑️ Deleted!")
                     del st.session_state.edit_row
                     del st.session_state.edit_index
