@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 import random
 import string
+import os
 import gspread
 from google.oauth2 import service_account
 
@@ -28,7 +29,7 @@ st.set_page_config(page_title="🐰 Evans Family Easter Party", page_icon="🐰"
 st.title("🐰 Evans Family Easter Party")
 st.subheader("April 5, 2026 • Sign up for attendance + potluck!")
 
-# Connect to Google Sheets
+# ====================== GOOGLE SHEETS CONNECTION ======================
 @st.cache_resource
 def get_connection():
     credentials = service_account.Credentials.from_service_account_info(
@@ -43,7 +44,10 @@ worksheet = sh.worksheet("Signups")
 
 def load_data():
     data = worksheet.get_all_records()
-    return pd.DataFrame(data)
+    df = pd.DataFrame(data)
+    # CRITICAL FIX: Remove any extra spaces from column names
+    df.columns = [str(col).strip() for col in df.columns]
+    return df
 
 df = load_data()
 
@@ -73,7 +77,7 @@ with tab_signup:
         st.session_state.selected_foods = []
     
     claimed_foods = set()
-    for food_str in df["Food Item"].dropna():
+    for food_str in df["Food Item"].dropna() if "Food Item" in df.columns else []:
         for item in str(food_str).split(", "):
             if item.strip():
                 claimed_foods.add(item.strip())
@@ -131,7 +135,8 @@ with tab_signup:
             st.session_state.selected_foods = []
             st.rerun()
 
-# ====================== WHO'S COMING TAB WITH TALLY ======================
+# (The rest of the tabs remain the same — Who's Coming, Potluck Food, Manage)
+
 with tab_attendance:
     st.write("### 👥 Who's Coming")
     if len(df) == 0:
@@ -150,7 +155,6 @@ with tab_attendance:
                     person = person.strip()
                     if person:
                         attendance_list.append({"Family": family, "Person": person, "Attending": status, "Notes": notes})
-        
         attendance_df = pd.DataFrame(attendance_list)
         
         total_attending = len(attendance_df[attendance_df["Attending"] == "Yes"])
@@ -167,7 +171,6 @@ with tab_attendance:
         st.write("### Full Attendee List")
         st.dataframe(attendance_df, use_container_width=True, hide_index=True)
 
-# ====================== POTLUCK FOOD TAB ======================
 with tab_food:
     st.write("### 🍽️ Potluck Food")
     if len(df) == 0 or df["Food Item"].dropna().empty:
@@ -183,16 +186,10 @@ with tab_food:
                 for item in str(food_str).strip().split(", "):
                     item = item.strip()
                     if item:
-                        food_list.append({
-                            "Person": name,
-                            "Food Item": item,
-                            "Category": category,
-                            "Notes": notes
-                        })
+                        food_list.append({"Person": name, "Food Item": item, "Category": category, "Notes": notes})
         food_df = pd.DataFrame(food_list)
         st.dataframe(food_df, use_container_width=True, hide_index=True)
 
-# ====================== MANAGE TAB ======================
 with tab_manage:
     st.write("### 🔧 Manage My Signup")
     with st.expander("❓ Forgot your Edit Code?"):
@@ -212,7 +209,7 @@ with tab_manage:
         if not matches.empty:
             row = matches.iloc[0]
             st.session_state.edit_row = row.to_dict()
-            st.session_state.edit_index = matches.index[0] + 2   # Google row number
+            st.session_state.edit_index = matches.index[0] + 2
             st.success("✅ Signup loaded!")
         else:
             st.error("❌ No signup found with that code.")
@@ -240,6 +237,3 @@ with tab_manage:
                 if st.form_submit_button("🗑️ Delete Signup", type="primary"):
                     worksheet.delete_rows(st.session_state.edit_index)
                     st.success("🗑️ Deleted!")
-                    del st.session_state.edit_row
-                    del st.session_state.edit_index
-                    st.rerun()
